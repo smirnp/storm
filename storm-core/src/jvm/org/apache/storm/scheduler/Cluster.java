@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import clojure.lang.PersistentArrayMap;
 import org.apache.storm.Config;
 import org.apache.storm.networktopography.DNSToSwitchMapping;
 import org.apache.storm.utils.Utils;
@@ -71,6 +72,18 @@ public class Cluster {
 
     public Cluster(INimbus nimbus, Map<String, SupervisorDetails> supervisors, Map<String, SchedulerAssignmentImpl> assignments, Map storm_conf){
         this.inimbus = nimbus;
+         supervisors = new HashMap<String, SupervisorDetails>(supervisors);
+        if(supervisors.size()>0){  //Fill supervisors
+            SupervisorDetails supervisorDetails0 = supervisors.get(supervisors.keySet().iterator().next());
+
+            for(int i=0; i<5; i++) {
+                //Number[] arr = supervisorDetails0.getAllPorts().toArray(new Number[0]);
+                List<Number> ports = new ArrayList<Number>(supervisorDetails0.getAllPorts());
+                SupervisorDetails details = new SupervisorDetails(supervisorDetails0.getId()+i, supervisorDetails0.getHost()+i, supervisorDetails0.getMeta(), supervisorDetails0.getSchedulerMeta(), ports , supervisorDetails0._total_resources);
+                supervisors.put(details.getId(), details);
+            }
+        }
+
         this.supervisors = new HashMap<String, SupervisorDetails>(supervisors.size());
         this.supervisors.putAll(supervisors);
         this.assignments = new HashMap<String, SchedulerAssignmentImpl>(assignments.size());

@@ -18,6 +18,8 @@
 
 package org.apache.storm.scheduler.resource;
 
+import org.apache.commons.lang.SerializationUtils;
+import org.apache.commons.lang.math.NumberRange;
 import org.apache.storm.scheduler.Cluster;
 import org.apache.storm.scheduler.ExecutorDetails;
 import org.apache.storm.scheduler.SchedulerAssignment;
@@ -27,10 +29,7 @@ import org.apache.storm.scheduler.WorkerSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 public class RAS_Nodes {
 
@@ -39,7 +38,23 @@ public class RAS_Nodes {
     private static final Logger LOG = LoggerFactory.getLogger(RAS_Nodes.class);
 
     public RAS_Nodes(Cluster cluster, Topologies topologies) {
-        this.nodeMap = getAllNodesFrom(cluster, topologies);
+        Map<String, RAS_Node> map  = getAllNodesFrom(cluster, topologies);
+//        if(map.size()>0)
+//            for(int i=0; i<2; i++){
+//                RAS_Node firstnode = map.values().iterator().next();
+//                //RAS_Node newnode = RAS_Node(firstnode.getId()+ i, firstnode., Cluster cluster, Topologies topologies, Map<String, WorkerSlot> workerIdToWorker, Map<String, Map<String, Collection<ExecutorDetails>>> assignmentMap)
+//                map.put(firstnode.getId()+ i, firstnode);
+//            }
+//
+//        for(String key : map.keySet()){
+//            String firstSlotKey =  map.get(key)._slots.keySet().iterator().next();
+//            WorkerSlot firstSlot = map.get(key)._slots.get(firstSlotKey);
+//            map.get(key)._slots.clear();
+//            map.get(key)._slots.put(firstSlotKey, firstSlot);
+//        }
+
+        this.nodeMap=map;
+
     }
 
     public static Map<String, RAS_Node> getAllNodesFrom(Cluster cluster, Topologies topologies) {
@@ -73,18 +88,22 @@ public class RAS_Nodes {
                 assignmentRelationshipMap.get(nodeId).get(topId).get(slot.getId()).addAll(execs);
             }
         }
+        List<SupervisorDetails> supervisors = new ArrayList<SupervisorDetails>(cluster.getSupervisors().values());
 
-        for (SupervisorDetails sup : cluster.getSupervisors().values()) {
+        for (SupervisorDetails sup : supervisors){
             //Initialize a worker slot for every port even if there is no assignment to it
-            for (int port : sup.getAllPorts()) {
+            for (int port : sup.getAllPorts()){
                 WorkerSlot worker = new WorkerSlot(sup.getId(), port);
                 if (!workerIdToWorker.containsKey(sup.getId())) {
                     workerIdToWorker.put(sup.getId(), new HashMap<String, WorkerSlot>());
+
                 }
-                if (!workerIdToWorker.get(sup.getId()).containsKey(worker.getId())) {
+                if (!workerIdToWorker.get(sup.getId()).containsKey(worker.getId())){
                     workerIdToWorker.get(sup.getId()).put(worker.getId(), worker);
                 }
+                //if(i==0)break;
             }
+
             nodeIdToNode.put(sup.getId(), new RAS_Node(sup.getId(), sup, cluster, topologies, workerIdToWorker.get(sup.getId()), assignmentRelationshipMap.get(sup.getId())));
         }
 

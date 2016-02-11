@@ -46,7 +46,7 @@ public class SupervisorDetails {
     /**
      * Map containing a manifest of resources for the node the supervisor resides
      */
-    private Map<String, Double> _total_resources;
+    public Map<String, Double> _total_resources;
 
     public SupervisorDetails(String id, String host, Object meta, Object schedulerMeta,
                              Collection<Number> allPorts, Map<String, Double> total_resources){

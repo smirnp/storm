@@ -52,7 +52,7 @@ public class RAS_Node {
     // {TopologyId -> {WorkerId -> {Executors}}}
     private Map<String, Map<String, Collection<ExecutorDetails>>> _topIdToUsedSlots = new HashMap<String, Map<String, Collection<ExecutorDetails>>>();
 
-    private final String _nodeId;
+    public final String _nodeId;
     private String _hostname;
     private boolean _isAlive;
     private SupervisorDetails _sup;

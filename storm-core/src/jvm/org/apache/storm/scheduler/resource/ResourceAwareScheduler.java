@@ -18,11 +18,16 @@
 
 package org.apache.storm.scheduler.resource;
 
+import com.google.common.base.Joiner;
+import itmo.escience.simenv.StormScheduler;
 import org.apache.storm.Config;
 import org.apache.storm.scheduler.resource.strategies.eviction.IEvictionStrategy;
 import org.apache.storm.scheduler.resource.strategies.priority.ISchedulingPriorityStrategy;
+import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
 import org.apache.storm.scheduler.resource.strategies.scheduling.IStrategy;
 import org.apache.storm.utils.Utils;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +37,18 @@ import org.apache.storm.scheduler.IScheduler;
 import org.apache.storm.scheduler.Topologies;
 import org.apache.storm.scheduler.TopologyDetails;
 import org.apache.storm.scheduler.WorkerSlot;
+import org.w3c.dom.Document;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ResourceAwareScheduler implements IScheduler {
 
@@ -63,8 +74,46 @@ public class ResourceAwareScheduler implements IScheduler {
             this.topologies = topologies.getCopy(topologies);
             this.nodes = new RAS_Nodes(this.cluster, this.topologies);
             this.conf.putAll(conf);
+             NodesAsString();
+        }
+
+        public String NodesAsString(){
+            int i=0;
+            int j=0;
+            JSONArray clusters = new JSONArray();
+            JSONObject cluster = new JSONObject();
+            JSONArray nodes = new JSONArray();
+            for(RAS_Node node : this.nodes.getNodes()){
+                TreeMap<String,Object> resourceMap = new TreeMap<String,Object>();
+                resourceMap.put("id",node.getId());
+                resourceMap.put("availableCpuResources",node.getAvailableCpuResources());
+                resourceMap.put("availableMemoryResources",node.getAvailableMemoryResources());
+                resourceMap.put("totalCpuResources",node.getTotalCpuResources());
+                resourceMap.put("totalMemoryResources",node.getTotalMemoryResources());
+
+                JSONObject json = new JSONObject();
+                json.putAll( resourceMap );
+                nodes.add(json);
+//                if(i>0 && i%3==i/3){
+//                    cluster.put("id", "Cluster"+String.valueOf(j));
+//                    cluster.put("nodes",nodes);
+//                    clusters.add(cluster);
+//                    cluster = new JSONObject();
+//                    nodes = new JSONArray();
+//                    j+=1;
+//                }
+                i++;
+            }
+            cluster.put("id", "Cluster"+String.valueOf(j));
+            cluster.put("nodes",nodes);
+            clusters.add(cluster);
+
+           String ret = clusters.toJSONString();
+           return ret;
         }
     }
+
+
 
     @SuppressWarnings("rawtypes")
     private Map conf;
@@ -159,10 +208,99 @@ public class ResourceAwareScheduler implements IScheduler {
                     this.cluster.setStatus(td.getId(), "Unsuccessful in scheduling - Exception thrown when running strategy {}"
                             + rasStrategy.getClass().getName() + ". Please check logs for details");
                 }
+
+
                 LOG.debug("scheduling result: {}", result);
-                if (result != null && result.isValid()) {
+                if (result != null && result.isValid()){
+
+                    int bandwidth = 1024;
+                    JSONArray topoComponents = ((DefaultResourceAwareStrategy)rasStrategy).TopologyStructureAsString(td);
+
+                    String nodesStructure = schedulingState.NodesAsString();
+                    JSONArray rasResult = new JSONArray();
+
+                    try {
+                        String filename = "d:/Projects/storm-2/schedules.txt";
+                        FileWriter fw = new FileWriter(filename, true); //the true will append the new data
+                        Joiner.MapJoiner mapJoiner = Joiner.on('\n').withKeyValueSeparator("=");
+                        fw.write("============================" + new Date().toString() + "============================\n");
+                        fw.write("Topology:\n");
+                        fw.write(topoComponents.toJSONString().replace("},{", "},\n{") + "\n");
+                        fw.write("Clusters:\n");
+                        fw.write(nodesStructure.replace("},{", "},\n{") + "\n");
+                        fw.write("TransferSpeeds:\n{\"mbpsBetweenRacks\":5.0, \"mbpsInRack\":5000.0 }\n");
+                        //HashMap<String, DaxTask> tasks = new HashMap<String, DaxTask>();
+
+                        if(result.getSchedulingResultMap()!=null){
+                            for(WorkerSlot workerSlot : result.getSchedulingResultMap().keySet()){
+                                String id = workerSlot.getId();
+
+                                JSONObject obj = new JSONObject();
+                                JSONArray tasksPerNode = new JSONArray();
+                                obj.put("nodeId", id);
+
+                                for(ExecutorDetails executorsDetails : result.getSchedulingResultMap().get(workerSlot)){
+                                    Iterator<Object> iterator = topoComponents.iterator();
+                                    while (iterator.hasNext()){
+                                        JSONObject objectt = (JSONObject)iterator.next();
+                                        if(objectt.get("exec").equals(executorsDetails.toString())){
+                                            JSONArray task = new JSONArray();
+                                            task.add(objectt.get("id").toString());
+                                            task.add(0.0);
+                                            tasksPerNode.add(task);
+                                            break;
+                                        }
+                                    }
+//                                    String taskId = topoComponents.stream().filter(t-> ((JSONObject)t).get("exec").equals(executorsDetails.toString())).map(t->((JSONObject)t).get("id")).collect(Collectors.toList()).toString();
+//                                    //String name = td.getExecutorToComponent().get(executorsDetails);
+//                                    tasksPerNode.add(taskId);
+                                    //Collection<ExecutorDetails> executorsDetails = result.getSchedulingResultMap().get(workerSlot);
+                                    //Collection<ExecutorDetails>  td.getExecutorToComponent().keySet()
+                                }
+                                obj.put("nodeId", id.split(":")[0]);
+                                obj.put("tasks", tasksPerNode);
+                                rasResult.add(obj);
+                                //fw.write(id+"=(" + names +")\n");
+                            }
+                            fw.write("RAS schedule:\n");
+                            fw.write(rasResult.toJSONString().replace("},{","},\n{")+"\n");
+
+                            String tempDir ="";
+                            //StormScheduleVisualizer vis = new StormScheduleVisualizer(tasks);
+                        }
+
+
+                        fw.close();
+                    }catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+
+                    StormScheduler stormScheduler = new StormScheduler(topoComponents.toJSONString(), nodesStructure, 5000, 5, rasResult.toJSONString());
+                    stormScheduler.initialization();
+                    Object stormResult = stormScheduler.run();
+                    //Object cpu = storm.getCpuUtilization(storm.schedule());
+                    //Object transfer = storm.getTransfer(storm.schedule());
+
+                    try {
+
+                        String filename = "d:/Projects/storm-2/schedules.txt";
+                        FileWriter fw = new FileWriter(filename, true); //the true will append the new data
+                        Joiner.MapJoiner mapJoiner = Joiner.on('\n').withKeyValueSeparator("=");
+                        fw.write("Our schedule:\n");
+                        //fw.write(mapJoiner.join(stormResult.schedule()).replace("$","")+"\n");
+                      //fw.write("Where:\n");//fw.write(td.getExecutorToComponent().toString()+"\n");
+
+                        fw.close();
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
                     if (result.isSuccess()) {
+
                         try {
+
                             if (mkAssignment(td, result.getSchedulingResultMap())) {
                                 topologySubmitter.moveTopoFromPendingToRunning(td);
                                 this.cluster.setStatus(td.getId(), "Running - " + result.getMessage());
@@ -179,7 +317,7 @@ public class ResourceAwareScheduler implements IScheduler {
                         }
                         break;
                     } else {
-                        if (result.getStatus() == SchedulingStatus.FAIL_NOT_ENOUGH_RESOURCES) {
+                        if (result.getStatus() == SchedulingStatus.FAIL_NOT_ENOUGH_RESOURCES){
                             if (evictionStrategy == null) {
                                 try {
                                     evictionStrategy = (IEvictionStrategy) Utils.newInstance((String) this.conf.get(Config.RESOURCE_AWARE_SCHEDULER_EVICTION_STRATEGY));
@@ -226,6 +364,9 @@ public class ResourceAwareScheduler implements IScheduler {
                     topologySubmitter.moveTopoFromPendingToInvalid(td, this.cluster);
                     break;
                 }
+
+
+
             }
         } else {
             LOG.warn("Topology {} is already fully scheduled!", td.getName());

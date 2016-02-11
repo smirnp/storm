@@ -1,22 +1,5 @@
 @echo off
 
-@rem Licensed to the Apache Software Foundation (ASF) under one
-@rem or more contributor license agreements.  See the NOTICE file
-@rem distributed with this work for additional information
-@rem regarding copyright ownership.  The ASF licenses this file
-@rem to you under the Apache License, Version 2.0 (the
-@rem "License"); you may not use this file except in compliance
-@rem with the License.  You may obtain a copy of the License at
-@rem
-@rem http://www.apache.org/licenses/LICENSE-2.0
-@rem
-@rem Unless required by applicable law or agreed to in writing, software
-@rem distributed under the License is distributed on an "AS IS" BASIS,
-@rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-@rem See the License for the specific language governing permissions and
-@rem limitations under the License.
-
-
 set STORM_HOME=%~dp0
 for %%i in (%STORM_HOME%.) do (
   set STORM_HOME=%%~dpi
@@ -25,7 +8,7 @@ if "%STORM_HOME:~-1%" == "\" (
   set STORM_HOME=%STORM_HOME:~0,-1%
 )
 
-if not exist %STORM_HOME%\lib\storm*.jar (
+if not exist %STORM_HOME%\storm*.jar (
     @echo +================================================================+
     @echo ^|      Error: STORM_HOME is not set correctly                   ^|
     @echo +----------------------------------------------------------------+
@@ -36,6 +19,7 @@ if not exist %STORM_HOME%\lib\storm*.jar (
 )
 
 set STORM_BIN_DIR=%STORM_HOME%\bin
+set STORM_SBIN_DIR=%STORM_HOME%\sbin
 
 if not defined STORM_CONF_DIR (
   set STORM_CONF_DIR=%STORM_HOME%\conf
@@ -49,7 +33,7 @@ if not defined JAVA_HOME (
   set JAVA_HOME=c:\apps\java\openjdk7
 )
 
-if not exist "%JAVA_HOME%\bin\java.exe" (
+if not exist %JAVA_HOME%\bin\java.exe (
   echo Error: JAVA_HOME is incorrectly set.
   goto :eof
 )
@@ -76,60 +60,45 @@ set CLASSPATH=%CLASSPATH%;%JAVA_HOME%\lib\tools.jar
 @rem add libs to CLASSPATH
 @rem
 
+set CLASSPATH=!CLASSPATH!;%STORM_HOME%\lib\storm\*
+set CLASSPATH=!CLASSPATH!;%STORM_HOME%\lib\common\*
 set CLASSPATH=!CLASSPATH!;%STORM_HOME%\lib\*
+
+@rem
+@rem add sbin to CLASSPATH
+@rem
+
+set CLASSPATH=!CLASSPATH!;%STORM_HOME%\sbin\*
 
 if not defined STORM_LOG_DIR (
   set STORM_LOG_DIR=%STORM_HOME%\logs
 )
 
-@rem
-@rem retrieve storm.log4j2.conf.dir from conf file
-@rem
-
-"%JAVA%" -client -Dstorm.options= -Dstorm.conf.file= -cp "%CLASSPATH%" org.apache.storm.command.config_value storm.log4j2.conf.dir > %CMD_TEMP_FILE%
-
-FOR /F "delims=" %%i in (%CMD_TEMP_FILE%) do (
-	FOR /F "tokens=1,* delims= " %%a in ("%%i") do (
-		if %%a == VALUE: (
-			set STORM_LOG4J2_CONFIGURATION_DIR=%%b
-			del /F %CMD_TEMP_FILE%)
-		)
-	)
+if not defined STORM_LOGFILE (
+  set STORM_LOGFILE=storm.log
 )
 
-@rem
-@rem if STORM_LOG4J2_CONFIGURATION_DIR was defined, also set STORM_LOG4J2_CONFIGURATION_FILE
-@rem
-
-if not %STORM_LOG4J2_CONFIGURATION_DIR% == nil (
-	set STORM_LOG4J2_CONFIGURATION_FILE="file:///%STORM_LOG4J2_CONFIGURATION_DIR%\cluster.xml"
+if not defined STORM_ROOT_LOGGER (
+  set STORM_ROOT_LOGGER=INFO,console,DRFA
 )
 
-@rem
-@rem otherwise, fall back to default
-@rem
-
-if not defined STORM_LOG4J2_CONFIGURATION_FILE (
-  set STORM_LOG4J2_CONFIGURATION_FILE="file:///%STORM_HOME%\log4j2\cluster.xml"
+if not defined STORM_LOGBACK_CONFIGURATION_FILE (
+  set STORM_LOGBACK_CONFIGURATION_FILE=%STORM_CONF_DIR%\logback.xml
 )
 
-"%JAVA%" -client -Dstorm.options= -Dstorm.conf.file= -cp "%CLASSPATH%" org.apache.storm.command.config_value java.library.path > %CMD_TEMP_FILE%
-
-FOR /F "delims=" %%i in (%CMD_TEMP_FILE%) do (
-    FOR /F "tokens=1,* delims= " %%a in ("%%i") do (
-	 if %%a == VALUE: (
-	   set JAVA_LIBRARY_PATH=%%b
-	   goto :storm_opts)
-  )
+if not defined STORM_WORKER_JMXREMOTE_PORT_OFFSET (
+  set STORM_WORKER_JMXREMOTE_PORT_OFFSET=1000
 )
 
-
-:storm_opts
- set STORM_OPTS=-Dstorm.options= -Dstorm.home=%STORM_HOME% -Djava.library.path=%JAVA_LIBRARY_PATH%;%JAVA_HOME%\bin;%JAVA_HOME%\lib;%JAVA_HOME%\jre\bin;%JAVA_HOME%\jre\lib
- set STORM_OPTS=%STORM_OPTS% -Dlog4j.configurationFile=%STORM_LOG4J2_CONFIGURATION_FILE%
- set STORM_OPTS=%STORM_OPTS% -Dstorm.log.dir=%STORM_LOG_DIR%
- del /F %CMD_TEMP_FILE%
-
+set STORM_OPTS=-Dstorm.home=%STORM_HOME% -Djava.library.path=sbin
+set STORM_OPTS=%STORM_OPTS% -Dlogback.configurationFile=%STORM_LOGBACK_CONFIGURATION_FILE%
+set STORM_OPTS=%STORM_OPTS% -Dstorm.log.dir=%STORM_LOG_DIR%
+set STORM_OPTS=%STORM_OPTS% -Dstorm.root.logger=%STORM_ROOT_LOGGER%
+set STORM_OPTS=%STORM_OPTS% -Dstorm.worker.jmxremote.port.offset=%STORM_WORKER_JMXREMOTE_PORT_OFFSET%
+set STORM_OPTS=%STORM_OPTS% -Dcom.sun.management.jmxremote
+set STORM_OPTS=%STORM_OPTS% -Dcom.sun.management.jmxremote.authenticate=false
+set STORM_OPTS=%STORM_OPTS% -Dcom.sun.management.jmxremote.ssl=false
+@rem echo %STORM_OPTS%
 
 if not defined STORM_SERVER_OPTS (
   set STORM_SERVER_OPTS=-server

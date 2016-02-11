@@ -17,6 +17,7 @@
  */
 package org.apache.storm.starter.spout;
 
+import ifmo.escience.dapris.monitoring.common.CommonMongoClient;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -24,7 +25,11 @@ import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 import org.apache.storm.utils.Utils;
+import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.Random;
 
@@ -35,6 +40,7 @@ import java.util.Random;
 public class RandomIntegerSpout extends BaseRichSpout {
     private SpoutOutputCollector collector;
     private Random rand;
+    private static final Logger log = LoggerFactory.getLogger(RandomIntegerSpout.class);
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -47,9 +53,23 @@ public class RandomIntegerSpout extends BaseRichSpout {
         this.rand = new Random();
     }
 
+//    @Override
+//    public void activate() {
+//        commonMongoClient = new CommonMongoClient();
+//    }
+
+    //public void prepare()
+
     @Override
     public void nextTuple() {
-        Utils.sleep(100);
+        //Utils.sleep(100);
+
+//        Document entry = new Document();
+//        entry.append("component", this.getClass().getName());
+//        entry.append("timestamp", new Date());
+//        commonMongoClient.insertDocumentToDB("statefulTopology.tuples", entry);
+        log.info("Emitting");
         collector.emit(new Values(rand.nextInt(1000), System.currentTimeMillis() - (24 * 60 * 60 * 1000)));
+
     }
 }

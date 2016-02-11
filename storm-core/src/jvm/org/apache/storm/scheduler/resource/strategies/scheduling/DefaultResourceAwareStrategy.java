@@ -18,22 +18,16 @@
 
 package org.apache.storm.scheduler.resource.strategies.scheduling;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.TreeMap;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.stream.Collectors;
 
 import org.apache.storm.scheduler.resource.ClusterStateData.NodeDetails;
 import org.apache.storm.scheduler.resource.ClusterStateData;
 import org.apache.storm.scheduler.resource.SchedulingResult;
 import org.apache.storm.scheduler.resource.SchedulingStatus;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +86,8 @@ public class DefaultResourceAwareStrategy implements IStrategy {
         Map<WorkerSlot, Collection<ExecutorDetails>> schedulerAssignmentMap = new HashMap<>();
         LOG.debug("ExecutorsNeedScheduling: {}", unassignedExecutors);
         Collection<ExecutorDetails> scheduledTasks = new ArrayList<>();
-        List<Component> spouts = this.getSpouts(td);
+        List<Component> spouts = this.getSpouts(
+                td);
 
         if (spouts.size() == 0) {
             LOG.error("Cannot find a Spout!");
@@ -123,7 +118,7 @@ public class DefaultResourceAwareStrategy implements IStrategy {
         executorsNotScheduled.removeAll(scheduledTasks);
         LOG.debug("/* Scheduling left over task (most likely sys tasks) */");
         // schedule left over system tasks
-        for (ExecutorDetails exec : executorsNotScheduled) {
+        for (ExecutorDetails exec : executorsNotScheduled){
             scheduleExecutor(exec, td, schedulerAssignmentMap, scheduledTasks);
         }
 
@@ -142,6 +137,8 @@ public class DefaultResourceAwareStrategy implements IStrategy {
         if (schedulerAssignmentMap == null) {
             LOG.error("Topology {} not successfully scheduled!", td.getId());
         }
+
+
         return result;
     }
 
@@ -327,26 +324,48 @@ public class DefaultResourceAwareStrategy implements IStrategy {
         HashMap<String, Component> visited = new HashMap<>();
 
         /* start from each spout that is not visited, each does a breadth-first traverse */
+        Queue<Component> queue = new LinkedList<>();
         for (Component spout : spouts) {
-            if (!visited.containsKey(spout.id)) {
-                Queue<Component> queue = new LinkedList<>();
-                queue.offer(spout);
-                while (!queue.isEmpty()) {
-                    Component comp = queue.poll();
-                    visited.put(comp.id, comp);
-                    ordered__Component_list.add(comp);
-                    List<String> neighbors = new ArrayList<>();
-                    neighbors.addAll(comp.children);
-                    neighbors.addAll(comp.parents);
-                    for (String nbID : neighbors) {
-                        if (!visited.containsKey(nbID)) {
-                            Component child = td.getComponents().get(nbID);
-                            queue.offer(child);
-                        }
+            queue.offer(spout);
+        }
+        while (!queue.isEmpty()) {
+            Component comp = queue.poll();
+            if (!visited.containsKey(comp.id)){
+                visited.put(comp.id, comp);
+                ordered__Component_list.add(comp);
+                List<String> neighbors = new ArrayList<>();
+                neighbors.addAll(comp.children);
+                neighbors.addAll(comp.parents);
+                for (String nbID : neighbors) {
+                    if (!visited.containsKey(nbID)) {
+                        Component child = td.getComponents().get(nbID);
+                        queue.offer(child);
                     }
                 }
             }
         }
+
+//        for (Component spout : spouts) {
+//            if (!visited.containsKey(spout.id)) {
+//                Queue<Component> queue = new LinkedList<>();
+//                queue.offer(spout);
+//                while (!queue.isEmpty()) {
+//                    Component comp = queue.poll();
+//                    visited.put(comp.id, comp);
+//                    ordered__Component_list.add(comp);
+//                    List<String> neighbors = new ArrayList<>();
+//                    neighbors.addAll(comp.children);
+//                    neighbors.addAll(comp.parents);
+//
+//                    for (String nbID : new ArrayList<String>(new HashSet<>(neighbors))){
+//                        if (!visited.containsKey(nbID)) {
+//                            Component child = td.getComponents().get(nbID);
+//                            queue.offer(child);
+//                        }
+//                    }
+//                }
+//            }
+//        }
         return ordered__Component_list;
     }
 
@@ -467,5 +486,79 @@ public class DefaultResourceAwareStrategy implements IStrategy {
             return null;
         }
         return _nodes.get(id);
+    }
+
+    public JSONArray TopologyStructureAsString(TopologyDetails td){
+        List<Component> spouts = this.getSpouts(td);
+        Queue<Component> ordered__Component_list = bfs(td, spouts);
+
+        JSONArray jsonComponents = new JSONArray();
+        List<LinkedHashMap<String,Object>> components = new ArrayList<LinkedHashMap<String,Object>>();
+        int i=0;
+        Collection<ExecutorDetails> unprocessed = _clusterStateData.getUnassignedExecutors(td.getId());
+        for(Component component : ordered__Component_list)
+            for(ExecutorDetails exec: component.execs){
+                LinkedHashMap<String, Object> componentMap = new LinkedHashMap<String, Object>();
+                componentMap.put("id", String.valueOf(i));
+                componentMap.put("name", component.id);
+                componentMap.put("exec", exec.toString());
+                components.add(componentMap);
+                i++;
+            }
+        i=0;
+        for(Component component : ordered__Component_list)
+            for(ExecutorDetails exec: component.execs){
+                LinkedHashMap<String,Object> componentMap = components.get(i);
+
+                List<String> parentIds= new ArrayList<String>();
+                List<Double> megabytesFromParent = new ArrayList<Double>();
+                for(final String parentName : new ArrayList<String>(new HashSet<>(component.parents))){
+                    List<Object> res = components.stream().filter(t->t.get("name").equals(parentName)).map(t->t.get("id")).collect(Collectors.toList());
+                    for(Object obj : res) {
+                        parentIds.add(obj.toString());
+                        megabytesFromParent.add(30.0);
+                    }
+                }
+                componentMap.put("parents", parentIds);
+                componentMap.put("megabytesFromParent", megabytesFromParent);
+
+                List<String> childrenIds= new ArrayList<String>();
+                for(String childName : new ArrayList<String>(new HashSet<>(component.children))){
+                    List<Object> res = components.stream().filter(t->t.get("name").equals(childName)).map(t->t.get("id")).collect(Collectors.toList());
+                    for(Object obj : res)
+                        childrenIds.add(obj.toString());
+                }
+                componentMap.put("children", childrenIds);
+                componentMap.put("megabytesPerSecond", 150.0);
+                componentMap.put("megabytesOut", 30.0);
+                componentMap.put("megabytesFromParent", megabytesFromParent);
+
+                componentMap.put("cpu.pcore.percent", td.getTotalCpuReqTask(exec));
+                componentMap.put("max.heap.size.mb", td.getTotalMemReqTask(exec));
+
+                JSONObject json = new JSONObject();
+                json.putAll( componentMap );
+                jsonComponents.add(json);
+                unprocessed.remove(exec);
+                i++;
+        }
+
+
+        for(ExecutorDetails exec: unprocessed){
+            LinkedHashMap<String,Object> compMap = new LinkedHashMap<String,Object>();
+            compMap.put("id", String.valueOf(i));
+            compMap.put("name", td.getExecutorToComponent().get(exec).replace("__",""));
+            compMap.put("exec", exec.toString());
+            compMap.put("children", new ArrayList<String>());
+            compMap.put("cpu.pcore.percent", td.getTotalCpuReqTask(exec));
+            compMap.put("max.heap.size.mb", td.getTotalMemReqTask(exec));
+
+            JSONObject json = new JSONObject();
+            json.putAll( compMap );
+            jsonComponents.add(json);
+            i++;
+        }
+
+       return jsonComponents;
     }
 }
