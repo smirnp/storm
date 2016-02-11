@@ -359,6 +359,28 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>itmo.escience.simenv</groupId>
+            <artifactId>simenv</artifactId>
+            <version>0.0.1</version>
+            <scope>system</scope>
+            <systemPath>d:/Projects/simenv/target/simenv-0.0.1-jar-with-dependencies.jar</systemPath>
+            <!--<systemPath>d:/Projects/simenv/target/simenv-0.0.1-jar-with-dependencies-2.jar</systemPath>-->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.yaml</groupId>
+                    <artifactId>snakeyaml</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.jedule</groupId>
+            <artifactId>jedule-0.3.2</artifactId>
+            <version>0.3.2</version>
+            <scope>system</scope>
+            <systemPath>d:/Projects/storm-2/lib/jedule-0.3.2.jar</systemPath>
+        </dependency>
+
     </dependencies>
     <build>
         <sourceDirectory>src/jvm</sourceDirectory>
@@ -415,7 +437,8 @@
                         <testSourceDirectory>test/clj</testSourceDirectory>
                     </testSourceDirectories>
                     <warnOnReflection>false</warnOnReflection>
-                    <copyDeclaredNamespaceOnly>true</copyDeclaredNamespaceOnly>
+                    <copyAllCompiledNamespaces></copyAllCompiledNamespaces>
+                    <!--<copyDeclaredNamespaceOnly>true</copyDeclaredNamespaceOnly>-->
                     <copiedNamespaces>
                         <copiedNamespace>none</copiedNamespace>
                     </copiedNamespaces>
@@ -661,10 +684,10 @@
                           <pattern>org.apache.commons.lang</pattern>
                           <shadedPattern>org.apache.storm.shade.org.apache.commons.lang</shadedPattern>
                         </relocation>
-                        <relocation>
-                          <pattern>org.json.simple</pattern>
-                          <shadedPattern>org.apache.storm.shade.org.json.simple</shadedPattern>
-                        </relocation>
+                        <!--<relocation>-->
+                          <!--<pattern>org.json.simple</pattern>-->
+                          <!--<shadedPattern>org.apache.storm.shade.org.json.simple</shadedPattern>-->
+                        <!--</relocation>-->
                         <relocation>
                           <pattern>clojure.math</pattern>
                           <shadedPattern>org.apache.storm.shade.clojure.math</shadedPattern>
@@ -693,38 +716,38 @@
                             <pattern>com.codahale.metrics</pattern>
                             <shadedPattern>org.apache.storm.shade.com.codahale.metrics</shadedPattern>
                         </relocation>
-                        <relocation>
-                            <pattern>metrics.core</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.core</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>metrics.counters</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.counters</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>metrics.gauges</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.gauges</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>metrics.histograms</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.histograms</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>metrics.meters</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.meters</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>metrics.reporters</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.reporters</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>metrics.timers</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.timers</shadedPattern>
-                        </relocation>
-                        <relocation>
-                            <pattern>metrics.utils</pattern>
-                            <shadedPattern>org.apache.storm.shade.metrics.utils</shadedPattern>
-                        </relocation>
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.core</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.core</shadedPattern>-->
+                        <!--</relocation>-->
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.counters</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.counters</shadedPattern>-->
+                        <!--</relocation>-->
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.gauges</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.gauges</shadedPattern>-->
+                        <!--</relocation>-->
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.histograms</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.histograms</shadedPattern>-->
+                        <!--</relocation>-->
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.meters</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.meters</shadedPattern>-->
+                        <!--</relocation>-->
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.reporters</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.reporters</shadedPattern>-->
+                        <!--</relocation>-->
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.timers</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.timers</shadedPattern>-->
+                        <!--</relocation>-->
+                        <!--<relocation>-->
+                            <!--<pattern>metrics.utils</pattern>-->
+                            <!--<shadedPattern>org.apache.storm.shade.metrics.utils</shadedPattern>-->
+                        <!--</relocation>-->
                     </relocations>
                     <transformers>
                         <transformer implementation="org.apache.storm.maven.shade.clojure.ClojureTransformer" />
@@ -818,14 +841,14 @@
                     <dependency>
                         <groupId>org.apache.storm</groupId>
                         <artifactId>maven-shade-clojure-transformer</artifactId>
-                        <version>${project.version}</version>
+                        <version>0.10.0</version>
                     </dependency>
                 </dependencies>
             </plugin>
             <plugin>
                <groupId>org.apache.storm</groupId>
                <artifactId>storm-maven-plugins</artifactId>
-               <version>${project.version}</version>
+               <version>0.10.0</version>
                <executions>
                  <execution>
                    <id>version-info</id>
@@ -874,17 +897,17 @@
                                      <artifactItem>
                                        <groupId>org.apache.storm</groupId>
                                        <artifactId>multilang-ruby</artifactId>
-                                       <version>${project.version}</version>
+                                       <version>0.10.0</version>
                                      </artifactItem>
                                      <artifactItem>
                                         <groupId>org.apache.storm</groupId>
                                         <artifactId>multilang-python</artifactId>
-                                        <version>${project.version}</version>
+                                        <version>0.10.0</version>
                                       </artifactItem>
                                       <artifactItem>
                                          <groupId>org.apache.storm</groupId>
                                          <artifactId>multilang-javascript</artifactId>
-                                         <version>${project.version}</version>
+                                         <version>0.10.0</version>
                                        </artifactItem>
                                    </artifactItems>
                                    <outputDirectory>${project.build.directory}/test-classes</outputDirectory>
@@ -918,6 +941,14 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
             </plugin>
         </plugins>
     </build>
